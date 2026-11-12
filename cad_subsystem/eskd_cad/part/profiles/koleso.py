@@ -123,6 +123,11 @@ def default_decisions(part: PartSpec) -> Dict[str, Decision]:
                           f"{src}: орг." if stamp.get("org") else calc, bool(stamp.get("org")))
     out["lit"] = Decision(stamp.get("lit") or "У", src if stamp.get("lit") else calc, True)
     out["n_blades"] = Decision(4, f"{src}: ТТ «лопасти 4 шт.»", True)
+    hardness = part.notes.get("hardness")
+    if hardness:
+        out["hardness"] = Decision(hardness, f"{src}: ТТ / подтверждение инженера", True)
+    else:
+        out["hardness"] = Decision("HB 500…550", calc, False, "уточнить по исходнику")
     return out
 
 

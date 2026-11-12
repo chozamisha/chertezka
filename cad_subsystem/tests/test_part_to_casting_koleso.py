@@ -15,6 +15,7 @@ from eskd_cad.part.pipeline import build_casting, part_from_input, run  # noqa: 
 from eskd_cad.part.profiles import koleso  # noqa: E402
 
 SPEC = ROOT / "examples" / "koleso_part_spec.json"
+DECISIONS = ROOT / "examples" / "koleso_decisions.json"
 
 
 class TestKolesoFromSource(unittest.TestCase):
@@ -22,21 +23,27 @@ class TestKolesoFromSource(unittest.TestCase):
         part = part_from_input(SPEC, profile="koleso")
         self.assertEqual(part.designation, "КП-062215009-01")
         self.assertEqual(part.mass_kg, 340.0)
+        self.assertEqual(part.notes.get("hardness"), "HB 500…550")
+        self.assertEqual(part.questions, [])
         self.assertTrue(koleso.matches_golden(part))
         errors, _ = koleso.validate(part)
         self.assertEqual(errors, [])
 
-    def test_build_and_render(self):
+    def test_build_and_render_confirmed(self):
         part = part_from_input(SPEC, profile="koleso")
-        draft = build_casting(part, confirm_all=True)
+        draft = build_casting(part, decisions_path=DECISIONS)
+        self.assertEqual(draft.params["_unconfirmed"], [])
         self.assertEqual(draft.designation, "КП-062215009-01")
         self.assertEqual(draft.params["C_HUB"], 248.0)
         self.assertEqual(draft.params["C_BORE"], 132.0)
         self.assertEqual(draft.params["H_BODY"], 464.0)
         self.assertEqual(draft.params["MASS_CAST"], 420.0)
         with tempfile.TemporaryDirectory() as tmp:
-            result = run(SPEC, out_dir=tmp, profile="koleso", render=True, confirm_all=True)
+            result = run(
+                SPEC, out_dir=tmp, profile="koleso", render=True, decisions_path=DECISIONS
+            )
             self.assertEqual(result["status"], "final", msg=result.get("qa_issues"))
+            self.assertEqual(result.get("unconfirmed"), [])
             self.assertTrue(Path(result["pdf"]).is_file())
             self.assertTrue(Path(result["dxf"]).is_file())
 
