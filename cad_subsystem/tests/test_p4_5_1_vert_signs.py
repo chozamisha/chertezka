@@ -143,6 +143,10 @@ class TestVertIntegration(unittest.TestCase):
         self.assertEqual(tech.core2.height_mm, 464.0)
 
     def test_inp008_not_checked_on_wheel(self):
+        from eskd_cad.geom import ocp_available
+
+        if not ocp_available():
+            self.skipTest("OCP8 venv not available")
         r = build_koleso_casting_result()
         q = run_quality_report(spec=r.spec, calc=r, use_ocp=True)
         inp8 = next(c for c in q.checks if c.id == "INP-008")

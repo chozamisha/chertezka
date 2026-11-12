@@ -1,211 +1,107 @@
 # -*- coding: utf-8 -*-
-"""Best-effort извлечение размеров и штампа из DXF детали."""
+"""Надписи листа детали: размерные числа, выноски отверстий, шероховатость."""
 from __future__ import annotations
 
 import re
-from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import List, Optional, Sequence, Tuple
 
+from .dxf_geom import TextItem, in_box
 from .part_spec import DimensionReading
 
-_DIAM = re.compile(r"(?:%%[cC]|⌀)\s*([0-9]+(?:[.,][0-9]+)?)")
-_RAD = re.compile(r"^[Rr]\s*([0-9]+(?:[.,][0-9]+)?)$")
-_NUM = re.compile(r"^([0-9]+(?:[.,][0-9]+)?)$")
-_THREAD = re.compile(r"М\s*([0-9]+)", re.I)
-_CB = re.compile(
-    r"([0-9]+)\s*отв\.?\s*(?:%%[cC]|⌀)\s*([0-9]+(?:[.,][0-9]+)?)"
-    r".*?(?:цек\.?|cek\.?)\s*(?:%%[cC]|⌀)?\s*([0-9]+(?:[.,][0-9]+)?)\s*[×xX]\s*([0-9]+(?:[.,][0-9]+)?)",
-    re.I | re.S,
-)
+_DIA_SIGN = r"(?:%%[cC]|⌀|Ø|ø|∅)"
+_NUM = r"([0-9]+(?:[.,][0-9]+)?)"
+_DIAM = re.compile(rf"^{_DIA_SIGN}\s*{_NUM}\*?$")
+_RAD = re.compile(rf"^R\s*{_NUM}\*?$")
+_LIN = re.compile(rf"^{_NUM}\*?$")
+_ROUGH = re.compile(r"^R[az]\s*[0-9]+(?:[.,][0-9]+)?$")
+_HOLES = re.compile(rf"^([0-9]+)\s*отв\.?\s*(.*)$", re.I)
+_HOLE_D = re.compile(rf"^{_DIA_SIGN}\s*{_NUM}")
+_THREAD = re.compile(r"^(М\s*([0-9]+(?:[.,][0-9]+)?)[^,;]*)", re.I)
+_CBORE = re.compile(rf"(?:цек\.?|⌴)\s*{_DIA_SIGN}?\s*{_NUM}(?:\s*[×xXх]\s*{_NUM})?", re.I)
+_TT_LINE = re.compile(r"^\s*(\d+\.\s+\D|\s{2,})")
 
 
 def _f(s: str) -> float:
     return float(s.replace(",", "."))
 
 
-def _iter_texts(msp) -> Iterable[str]:
-    for e in msp:
-        t = e.dxftype()
-        if t == "TEXT":
-            yield str(e.dxf.text or "")
-        elif t == "MTEXT":
-            yield str(e.text or "")
+def clean(text: str) -> str:
+    return text.replace("%%c", "⌀").replace("%%C", "⌀").replace("%%d", "°").replace("%%p", "±")
 
 
-def extract_readings(dxf_path: str | Path) -> List[DimensionReading]:
-    """Снять TEXT/MTEXT с DXF. Без OCR; PDF сюда не подаём."""
-    try:
-        import ezdxf
-    except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("Нужен пакет ezdxf: pip install ezdxf") from exc
-
-    path = Path(dxf_path)
-    doc = ezdxf.readfile(str(path))
-    msp = doc.modelspace()
-    out: List[DimensionReading] = []
-
-    for raw in _iter_texts(msp):
-        text = raw.strip()
-        if not text:
-            continue
-        flat = text.replace("\n", " ")
-
-        if "ПП-" in flat or re.search(r"[A-ZА-Я]{2,}-\d", flat):
-            # designation-like
-            if re.fullmatch(r"ПП-\d{9}-\d{2}", flat) or flat.startswith("ПП-"):
-                out.append(
-                    DimensionReading(
-                        raw_text=flat,
-                        kind="designation",
-                        confidence=0.95,
-                        hint="штамп/обозначение",
-                    )
-                )
-                continue
-
-        if flat in ("СЧ15", "СЧ20", "СЧ25") or flat.startswith("ГОСТ 1412"):
-            out.append(
-                DimensionReading(
-                    raw_text=flat,
-                    kind="material",
-                    confidence=0.9,
-                    hint="штамп материал",
-                )
-            )
-            continue
-
-        m_cb = _CB.search(flat)
-        if m_cb:
-            out.append(
-                DimensionReading(
-                    raw_text=flat,
-                    kind="other",
-                    confidence=0.85,
-                    hint=(
-                        f"holes n={m_cb.group(1)} d={_f(m_cb.group(2))} "
-                        f"cb={_f(m_cb.group(3))}x{_f(m_cb.group(4))}"
-                    ),
-                )
-            )
-            # also expose numeric pieces
-            out.append(
-                DimensionReading(
-                    raw_text=m_cb.group(2),
-                    kind="diameter",
-                    value_mm=_f(m_cb.group(2)),
-                    confidence=0.8,
-                    hint="thru_hole",
-                )
-            )
-            out.append(
-                DimensionReading(
-                    raw_text=m_cb.group(3),
-                    kind="diameter",
-                    value_mm=_f(m_cb.group(3)),
-                    confidence=0.8,
-                    hint="counterbore_d",
-                )
-            )
-            out.append(
-                DimensionReading(
-                    raw_text=m_cb.group(4),
-                    kind="linear",
-                    value_mm=_f(m_cb.group(4)),
-                    confidence=0.8,
-                    hint="counterbore_depth",
-                )
-            )
-            continue
-
-        if _THREAD.search(flat) and "отв" in flat.lower():
-            out.append(
-                DimensionReading(
-                    raw_text=flat,
-                    kind="thread",
-                    confidence=0.8,
-                    hint="machined_threads",
-                )
-            )
-            continue
-
-        for m in _DIAM.finditer(flat):
-            out.append(
-                DimensionReading(
-                    raw_text=flat if flat != m.group(0) else f"⌀{m.group(1)}",
-                    kind="diameter",
-                    value_mm=_f(m.group(1)),
-                    confidence=0.9 if flat.startswith("%%") or "⌀" in flat or "%%c" in flat.lower() else 0.75,
-                    hint="diameter_text",
-                )
-            )
-
-        m_r = _RAD.match(flat)
-        if m_r:
-            out.append(
-                DimensionReading(
-                    raw_text=flat,
-                    kind="radius",
-                    value_mm=_f(m_r.group(1)),
-                    confidence=0.85,
-                    hint="radius",
-                )
-            )
-            continue
-
-        m_n = _NUM.match(flat)
-        if m_n:
-            val = _f(m_n.group(1))
-            # Голое число на поле — линейный размер (мм). Массу не угадываем
-            # без контекста штампа: иначе 15/100 уезжают из linears.
-            out.append(
-                DimensionReading(
-                    raw_text=flat,
-                    kind="linear",
-                    value_mm=val,
-                    confidence=0.55,
-                    hint="bare_number",
-                )
-            )
-            continue
-
-        if flat in ("Корпус", "Колесо", "Отливка"):
-            out.append(
-                DimensionReading(
-                    raw_text=flat,
-                    kind="other",
-                    confidence=0.7,
-                    hint="name",
-                )
-            )
-
+def parse_hole_note(text: str) -> Optional[dict]:
+    """«6 отв. ⌀12, цек. ⌀24×16» или «4 отв. М8-7Н» → число, диаметр, цековка, резьба."""
+    m = _HOLES.match(text.strip())
+    if not m:
+        return None
+    out = {"n": int(m.group(1)), "label": clean(text.strip())}
+    rest = m.group(2).strip()
+    md, mt = _HOLE_D.match(rest), _THREAD.match(rest)
+    if md:
+        out["d"] = _f(md.group(1))
+    elif mt:
+        out["thread"] = mt.group(1).strip()
+        out["d"] = _f(mt.group(2))
+    mc = _CBORE.search(rest)
+    if mc:
+        out["d_cb"] = _f(mc.group(1))
+        if mc.group(2):
+            out["cb_depth"] = _f(mc.group(2))
     return out
 
 
-def diameter_values(readings: List[DimensionReading]) -> List[float]:
-    return sorted({r.value_mm for r in readings if r.kind == "diameter" and r.value_mm is not None})
+def readings_from_texts(texts: Sequence[TextItem], stamp_box=None) -> List[DimensionReading]:
+    """Надписи поля чертежа без основной надписи и строк ТТ."""
+    out: List[DimensionReading] = []
+    for t in texts:
+        if in_box(t, stamp_box) or _TT_LINE.match(t.text):
+            continue
+        s = t.text.strip()
+        kind, value = None, None
+        if _ROUGH.match(s):
+            kind = "roughness"
+        elif _HOLES.match(s):
+            kind = "holes"
+        elif _DIAM.match(s):
+            kind, value = "diameter", _f(_DIAM.match(s).group(1))
+        elif _RAD.match(s):
+            kind, value = "radius", _f(_RAD.match(s).group(1))
+        elif _LIN.match(s):
+            kind, value = "linear", _f(_LIN.match(s).group(1))
+        if kind:
+            out.append(DimensionReading(clean(s), kind, value, round(t.x, 2), round(t.y, 2)))
+    return out
 
 
-def linear_values(readings: List[DimensionReading]) -> List[float]:
-    return sorted({r.value_mm for r in readings if r.kind == "linear" and r.value_mm is not None})
+def tt_lines(texts: Sequence[TextItem], stamp_box=None) -> List[str]:
+    """Строки технических требований детали сверху вниз."""
+    rows = [t for t in texts if not in_box(t, stamp_box) and abs(t.rot) < 1 and _TT_LINE.match(t.text)]
+    return [clean(t.text) for t in sorted(rows, key=lambda t: -t.y)]
 
 
-def pick_designation(readings: List[DimensionReading]) -> str:
-    for r in readings:
-        if r.kind == "designation":
-            return r.raw_text.strip()
-    return ""
+class Snapper:
+    """Привязка измеренного по геометрии значения к размерному числу с чертежа."""
 
+    def __init__(self, readings: List[DimensionReading]):
+        self.readings = readings
 
-def pick_materials(readings: List[DimensionReading]) -> Tuple[str, ...]:
-    mats = []
-    for r in readings:
-        if r.kind == "material":
-            mats.append(r.raw_text.strip())
-    # unique preserve order
-    seen = set()
-    out = []
-    for m in mats:
-        if m not in seen:
-            seen.add(m)
-            out.append(m)
-    return tuple(out)
+    def snap(self, measured: float, kind: str, name: str) -> Tuple[float, str]:
+        tol = max(0.3, 0.004 * abs(measured))
+        best = None
+        for r in self.readings:
+            if r.kind != kind or r.value_mm is None or abs(r.value_mm - measured) > tol:
+                continue
+            # уже занятое число годится (15 — и толщина фланца, и стенка), свободное лучше
+            rank = (abs(r.value_mm - measured), bool(r.used_for))
+            if best is None or rank < best[0]:
+                best = (rank, r)
+        if best is None:
+            return round(measured, 2), "геометрия DXF, размерного числа нет"
+        r = best[1]
+        r.used_for = f"{r.used_for}, {name}" if r.used_for else name
+        return r.value_mm, f"размерное число «{r.raw_text}» + геометрия DXF"
+
+    def score(self, measured: float, kind: str) -> bool:
+        tol = max(0.3, 0.004 * abs(measured))
+        return any(r.kind == kind and r.value_mm is not None and abs(r.value_mm - measured) <= tol
+                   for r in self.readings)

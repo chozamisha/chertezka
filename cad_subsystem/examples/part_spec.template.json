@@ -1,0 +1,64 @@
+{
+  "schema": 2,
+  "part_id": "ПП-#########-00",
+  "designation": "ПП-#########-00",
+  "name": ["Корпус"],
+  "material": ["СЧ15", "ГОСТ 1412-85"],
+  "mass_kg": 15.0,
+  "scale": "1:2",
+  "profile": "korpus",
+  "dimensions": {
+    "h_part": 100.0,
+    "t_top_part": 15.0,
+    "t_bot_part": 20.0,
+    "d_top": 200.0,
+    "d_bot": 300.0,
+    "d_bore_top": 120.0,
+    "d_bore_bot": 190.0,
+    "wall": 15.0
+  },
+  "holes": [
+    {
+      "pcd": 250.0,
+      "n": 6,
+      "d": 12.0,
+      "angle0": 0.0,
+      "kind": "cbore",
+      "d_cb": 24.0,
+      "cb_depth": 16.0,
+      "label": "6 отв. ⌀12, цек. ⌀24×16"
+    },
+    {
+      "pcd": 168.0,
+      "n": 4,
+      "d": 8.0,
+      "angle0": 45.0,
+      "kind": "thread",
+      "label": "4 отв. М8-7Н"
+    }
+  ],
+  "ribs": {
+    "n": 6,
+    "width": 10.0,
+    "angle0": 30.0,
+    "r_out": 144.0
+  },
+  "roughness": {
+    "top": "Ra 6,3",
+    "bottom": "Ra 6,3",
+    "bore": null,
+    "general": "Ra 12,5"
+  },
+  "stamp": {
+    "dev": "Шевцов",
+    "chk": "Степанова",
+    "org": ["СФУ ИЦМ", "гр. ЗЦМ22-01Б"],
+    "lit": "У"
+  },
+  "notes": {
+    "hardness": "НВ 163…229"
+  },
+  "provenance": {},
+  "questions": [],
+  "warnings": []
+}

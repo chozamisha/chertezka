@@ -5,7 +5,7 @@
 - **ОС:** только Linux. AutoCAD / COM / pyautocad не используются.
 - **Выход:** DXF (векторные CAD-объекты) + PDF.
 - **Аудит и план:** [`AUDIT_AND_PLAN.md`](AUDIT_AND_PLAN.md).
-- **Деталь → отливка (MVP):** [`PART_TO_CASTING.md`](PART_TO_CASTING.md) — `eskd_cad.part` / `examples.part_dxf_to_casting`.
+- **Деталь → отливка:** [`PART_TO_CASTING.md`](PART_TO_CASTING.md) — `eskd_cad.part` / `examples.part_dxf_to_casting` → лист через `cad_work/draw_otl`.
 
 ## Быстрый тест / основной путь (P1+P2)
 

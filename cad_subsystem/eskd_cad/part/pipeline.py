@@ -1,69 +1,67 @@
 # -*- coding: utf-8 -*-
-"""Вход: DXF/JSON детали → PartSpec → CastingDraft (+ опциональный рендер Корпуса)."""
+"""Вход: DXF/JSON детали → PartSpec → решения → CastingDraft → лист отливки."""
 from __future__ import annotations
 
+import importlib
 import json
 import sys
 import types
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
+from . import decisions as decisions_mod
 from .part_spec import CastingDraft, PartSpec
 from .profiles import korpus
+
+REPO = Path(__file__).resolve().parents[3]
+CAD_WORK = REPO / "cad_work"
 
 
 def load_part_json(path: str | Path) -> PartSpec:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    readings = data.get("readings") or []
-    from .part_spec import DimensionReading
-
-    return PartSpec(
-        part_id=data["part_id"],
-        designation=data.get("designation", ""),
-        name=list(data.get("name") or []),
-        material=list(data.get("material") or []),
-        mass_kg=data.get("mass_kg"),
-        scale=data.get("scale"),
-        profile=data.get("profile", "generic"),
-        dimensions=dict(data.get("dimensions") or {}),
-        readings=[DimensionReading(**r) for r in readings],
-        questions=list(data.get("questions") or []),
-        process_hints=dict(data.get("process_hints") or {}),
-        source_path=data.get("source_path", str(path)),
-    )
+    return PartSpec.from_dict(data, source_path=str(path))
 
 
-def part_from_input(
-    path: str | Path,
-    *,
-    profile: str = "auto",
-    allow_golden_fill: bool = True,
-) -> PartSpec:
+def part_from_input(path: str | Path, *, profile: str = "auto") -> PartSpec:
     path = Path(path)
     if path.suffix.lower() == ".json":
-        return load_part_json(path)
-    if path.suffix.lower() != ".dxf":
+        part = load_part_json(path)
+    elif path.suffix.lower() == ".dxf":
+        if profile not in ("auto", "korpus"):
+            raise ValueError(f"Неизвестный profile={profile!r}; доступны auto|korpus")
+        part = korpus.part_from_dxf(str(path))
+    else:
         raise ValueError(f"Поддержаны .dxf и PartSpec .json, получено: {path.suffix}")
 
-    # авто-профиль по обозначению / эвристике (MVP: только korpus)
-    if profile not in ("auto", "korpus"):
-        raise ValueError(f"Неизвестный profile={profile!r}; доступны auto|korpus")
-
-    part = korpus.part_from_dxf(str(path), allow_golden_fill=allow_golden_fill)
-    if profile == "korpus":
+    if profile == "korpus" or part.profile == "korpus":
         return part
-    if part.designation.startswith("ПП-062215009") or part.profile == "korpus":
+    if profile == "auto" and part.profile == "korpus":
         return part
     raise ValueError(
-        "Не удалось выбрать профиль. Сейчас реализован только korpus "
-        "(ПП-062215009 или --profile korpus). Передайте PartSpec JSON."
+        f"Профиль {part.profile!r} не поддержан. Сейчас работает только korpus "
+        "(полое тело вращения с двумя фланцами). Передайте PartSpec JSON с profile=korpus."
     )
 
 
-def build_casting(part: PartSpec, **kwargs: Any) -> CastingDraft:
-    if part.profile == "korpus":
-        return korpus.build_casting(part, **kwargs)
-    raise ValueError(f"Нет to_casting для profile={part.profile!r}")
+def build_casting(
+    part: PartSpec,
+    *,
+    decisions_path: str | Path | None = None,
+    confirm_all: bool = False,
+) -> CastingDraft:
+    overrides = decisions_mod.load_overrides(decisions_path) if decisions_path else None
+    resolved = decisions_mod.resolve(part, overrides, confirm_all=confirm_all)
+    if part.profile != "korpus":
+        raise ValueError(f"Нет to_casting для profile={part.profile!r}")
+    draft = korpus.build_casting(part, resolved)
+    open_qs = decisions_mod.unconfirmed(resolved)
+    if open_qs:
+        draft.questions = list(draft.questions) + [
+            "Неподтверждённые решения (лист будет черновиком): " + ", ".join(open_qs)
+        ]
+    draft.params["_decisions"] = decisions_mod.dump(resolved)
+    draft.params["_unconfirmed"] = open_qs
+    return draft
 
 
 def write_json(obj: Dict[str, Any] | PartSpec | CastingDraft, path: Path) -> None:
@@ -72,69 +70,69 @@ def write_json(obj: Dict[str, Any] | PartSpec | CastingDraft, path: Path) -> Non
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def inject_korpus_module(params: Dict[str, Any]) -> types.ModuleType:
-    """Подменить/создать модуль korpus_data для drawings/draw_otl.py."""
-    mod = types.ModuleType("korpus_data")
-    for k, v in params.items():
-        setattr(mod, k, v)
+def _params_module(params: Dict[str, Any]) -> types.SimpleNamespace:
+    clean = {k: v for k, v in params.items() if not k.startswith("_")}
+    return types.SimpleNamespace(**clean)
 
-    # casting_mass_kg как в эталоне
-    def casting_mass_kg() -> float:
-        return float(params.get("MASS_CAST_CALC", params.get("MASS_CAST", 0.0)))
 
-    mod.casting_mass_kg = casting_mass_kg  # type: ignore[attr-defined]
-    sys.modules["korpus_data"] = mod
-    return mod
+def _load_cad_work_draw_otl():
+    """Импорт cad_work/draw_otl без конфликтов с drawings/cad.py."""
+    for name in ("draw_otl", "cad", "common", "qa_check", "qa_extra", "korpus_data"):
+        mod = sys.modules.get(name)
+        if mod is not None and "drawings" in str(getattr(mod, "__file__", "")):
+            del sys.modules[name]
+    if str(CAD_WORK) not in sys.path:
+        sys.path.insert(0, str(CAD_WORK))
+    import draw_otl  # type: ignore
+
+    return importlib.reload(draw_otl)
 
 
 def render_korpus_otlivka(
     draft: CastingDraft,
     *,
-    drawings_dir: Optional[Path] = None,
-    out_dir: Optional[Path] = None,
-) -> Tuple[Path, Path, Path]:
+    out_dir: Path,
+    force: bool = False,
+) -> Dict[str, Any]:
     """
-    Сгенерировать лист отливки через существующий drawings/draw_otl.py.
+    Лист отливки через cad_work/draw_otl.build.
 
-    Возвращает пути (png, pdf, dxf).
+    Без force PDF пишется только если qa_check+qa_extra чисты и все решения
+    подтверждены. Иначе — PNG черновика и список замечаний.
     """
     if draft.profile != "korpus":
         raise ValueError("render_korpus_otlivka только для profile=korpus")
-
-    # pipeline.py → part → eskd_cad → cad_subsystem → repo root
-    root = Path(__file__).resolve().parents[3]
-    drawings_dir = drawings_dir or (root / "drawings")
-    out_dir = out_dir or (root / "cad_subsystem" / "out" / "part_to_casting")
+    out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    inject_korpus_module(draft.params)
+    draw_otl = _load_cad_work_draw_otl()
+    D = _params_module(draft.params)
+    sh = draw_otl.build(D)
+    issues = draw_otl.check(sh, D)
 
-    # drawings/ imports cad.py and korpus_data from its own directory
-    sys.path.insert(0, str(drawings_dir))
-    try:
-        import importlib
+    stem = draft.designation or "otlivka"
+    png = out_dir / f"{stem}.png"
+    pdf = out_dir / f"{stem}.pdf"
+    dxf = out_dir / f"{stem}.dxf"
+    unconfirmed = list(draft.params.get("_unconfirmed") or [])
+    clean = not issues and not unconfirmed
 
-        # Force reload of draw_otl against injected korpus_data
-        if "korpus_data" in sys.modules:
-            pass  # already injected
-        if "draw_otl" in sys.modules:
-            del sys.modules["draw_otl"]
-        if "cad" in sys.modules:
-            # keep cad if already loaded from drawings
-            pass
-
-        import draw_otl  # type: ignore
-
-        importlib.reload(draw_otl)
-        # Point outputs into out_dir
-        draw_otl.OUT = out_dir
-        draw_otl.main()
-    finally:
-        if sys.path and sys.path[0] == str(drawings_dir):
-            sys.path.pop(0)
-
-    stem = "ПП-062215009-01_Korpus_Otlivka"
-    return out_dir / f"{stem}.png", out_dir / f"{stem}.pdf", out_dir / f"{stem}.dxf"
+    sh.render(str(png), dpi=180)
+    sh.to_dxf(str(dxf))
+    result = {
+        "png": str(png),
+        "dxf": str(dxf),
+        "qa_issues": issues,
+        "unconfirmed": unconfirmed,
+        "final": False,
+    }
+    if clean or force:
+        sh.render(str(png), pdf=str(pdf), dpi=180)
+        result["pdf"] = str(pdf)
+        result["final"] = clean and not force
+        if force and (issues or unconfirmed):
+            result["forced"] = True
+    return result
 
 
 def run(
@@ -143,29 +141,48 @@ def run(
     out_dir: str | Path,
     profile: str = "auto",
     render: bool = False,
-    allow_golden_fill: bool = True,
+    decisions_path: str | Path | None = None,
+    confirm_all: bool = False,
+    force_render: bool = False,
 ) -> Dict[str, Any]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    part = part_from_input(input_path, profile=profile, allow_golden_fill=allow_golden_fill)
-    draft = build_casting(part)
-
-    part_path = out / "part_spec.json"
-    draft_path = out / "casting_draft.json"
-    write_json(part, part_path)
-    write_json(draft, draft_path)
+    part = part_from_input(input_path, profile=profile)
+    errors, warnings = korpus.validate(part) if part.profile == "korpus" else ([], [])
+    part.warnings = list(dict.fromkeys(list(part.warnings) + warnings))
+    write_json(part, out / "part_spec.json")
 
     result: Dict[str, Any] = {
-        "part_spec": str(part_path),
-        "casting_draft": str(draft_path),
-        "questions": draft.questions,
-        "warnings": draft.warnings,
-        "designation": draft.designation,
+        "part_spec": str(out / "part_spec.json"),
+        "questions": list(part.questions),
+        "warnings": list(part.warnings),
+        "errors": errors,
+        "designation": None,
     }
+    if errors:
+        result["status"] = "part_invalid"
+        return result
+
+    draft = build_casting(part, decisions_path=decisions_path, confirm_all=confirm_all)
+    write_json(draft, out / "casting_draft.json")
+    write_json(draft.params.get("_decisions") or {}, out / "decisions.json")
+
+    result.update({
+        "casting_draft": str(out / "casting_draft.json"),
+        "decisions": str(out / "decisions.json"),
+        "questions": draft.questions,
+        "warnings": list(dict.fromkeys(list(part.warnings) + draft.warnings)),
+        "designation": draft.designation,
+        "unconfirmed": draft.params.get("_unconfirmed") or [],
+        "status": "draft" if draft.params.get("_unconfirmed") else "ready",
+    })
 
     if render:
-        png, pdf, dxf = render_korpus_otlivka(draft, out_dir=out)
-        result.update({"png": str(png), "pdf": str(pdf), "dxf": str(dxf)})
-
+        rendered = render_korpus_otlivka(draft, out_dir=out, force=force_render)
+        result.update(rendered)
+        if rendered.get("final"):
+            result["status"] = "final"
+        elif rendered.get("qa_issues"):
+            result["status"] = "qa_failed"
     return result

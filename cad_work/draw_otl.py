@@ -81,16 +81,33 @@ def cast_polys(D):
 
 
 def detail_thin(F, D):
-    """Контур детали после обработки тонкой линией (ГОСТ 3.1125-88)."""
+    """Контур детали после обработки тонкой линией (ГОСТ 3.1125-88).
+
+    Рисуется только там, где есть припуск: без припуска он совпадает с контуром отливки.
+    """
     y0 = D.ALLOW_BOT
     y1 = y0 + D.T_BOT_PART
     y2 = y0 + D.H_PART - D.T_TOP_PART
     y3 = y0 + D.H_PART
     for s in (-1, 1):
-        F.seg(s * D.R_IN_BOT, y0, s * D.D_BOT / 2, y0, "thin")
-        F.seg(s * D.R_IN_TOP, y3, s * D.D_TOP / 2, y3, "thin")
-        F.pl([(s * D.R_IN_BOT, y0), (s * D.R_IN_BOT, y1),
-              (s * D.R_IN_TOP, y2), (s * D.R_IN_TOP, y3)], "thin")
+        if D.ALLOW_BOT > 0:
+            F.seg(s * D.R_IN_BOT, y0, s * D.D_BOT / 2, y0, "thin")
+        if D.ALLOW_TOP > 0:
+            F.seg(s * D.R_IN_TOP, y3, s * D.D_TOP / 2, y3, "thin")
+        if D.ALLOW_BORE > 0:
+            F.pl([(s * D.R_IN_BOT, y0), (s * D.R_IN_BOT, y1),
+                  (s * D.R_IN_TOP, y2), (s * D.R_IN_TOP, y3)], "thin")
+
+
+def hole_groups(D):
+    """Группы отверстий (⌀ осевой окружности, число, начальный угол), от большей окружности к меньшей."""
+    groups = opt(D, "HOLE_GROUPS", None)
+    if groups is None:
+        groups = [
+            (D.PCD_OUTER, D.N_OUTER, opt(D, "PCD_OUTER_ANGLE0", 0.0)),
+            (D.PCD_INNER, D.N_INNER, opt(D, "PCD_INNER_ANGLE0", 45.0)),
+        ]
+    return sorted([tuple(g) for g in groups if g[1]], key=lambda g: -g[0])
 
 
 def vdim(F, x, y0, y1, off, txt, k, tpos=0.5):
@@ -131,13 +148,15 @@ def draw_section(F, sh, D, k):
     # припуск перед знаком шероховатости обрабатываемой поверхности (ГОСТ 3.1125-88);
     # знаки стоят на выносных линиях торцов, а не на размерных
     ra = opt(D, "RA_FACES", "Ra 6,3")
-    if D.D_TOP < D.D_BOT:
-        sh.rough(F.P(D.D_TOP / 2, yt) + np.array([11.0, 0.0]), (0, 1), ra, pre=fmt(D.ALLOW_TOP, 1))
-    else:
-        tip = F.P(-(D.R_IN_TOP_CAST + D.D_TOP / 2) / 2, yt)
-        sh.rough_leader(tip, tip + np.array([-30, 30]), ra, pre=fmt(D.ALLOW_TOP, 1), side="left")
-    tip = F.P(xr, yb) + np.array([5.0, 0.0])
-    sh.rough_leader(tip, tip + np.array([8, -12]), ra, pre=fmt(D.ALLOW_BOT, 1))
+    if D.ALLOW_TOP > 0:
+        if D.D_TOP < D.D_BOT:
+            sh.rough(F.P(D.D_TOP / 2, yt) + np.array([11.0, 0.0]), (0, 1), ra, pre=fmt(D.ALLOW_TOP, 1))
+        else:
+            tip = F.P(-(D.R_IN_TOP_CAST + D.D_TOP / 2) / 2, yt)
+            sh.rough_leader(tip, tip + np.array([-30, 30]), ra, pre=fmt(D.ALLOW_TOP, 1), side="left")
+    if D.ALLOW_BOT > 0:
+        tip = F.P(xr, yb) + np.array([5.0, 0.0])
+        sh.rough_leader(tip, tip + np.array([8, -12]), ra, pre=fmt(D.ALLOW_BOT, 1))
 
     sh.text(*(F.P(0, yt) + np.array([0, 26])), "А-А", h=5, ha="center")
 
@@ -146,7 +165,8 @@ def draw_plan(Tv, sh, D, k):
     Tv.circle(0, 0, D.D_BOT / 2)
     Tv.circle(0, 0, D.D_TOP / 2)
     Tv.circle(0, 0, D.R_IN_TOP_CAST)
-    Tv.circle(0, 0, D.R_IN_TOP, "thin")
+    if D.ALLOW_BORE > 0:
+        Tv.circle(0, 0, D.R_IN_TOP, "thin")
     rmax = max(D.D_BOT, D.D_TOP) / 2
     Tv.axis(-rmax - 4 * k, 0, rmax + 4 * k, 0)
     Tv.axis(0, -rmax - 4 * k, 0, rmax + 4 * k)
@@ -154,7 +174,7 @@ def draw_plan(Tv, sh, D, k):
     hw = D.RIB_W / 2
     r1 = D.D_TOP / 2
     r2 = opt(D, "RIB_R_OUT", D.D_BOT / 2 - 6)
-    step = 360.0 / D.N_RIBS
+    step = 360.0 / D.N_RIBS if D.N_RIBS else 360.0
     a0 = opt(D, "RIB_ANGLE0", step / 2)
     rib_visible = D.N_RIBS > 0 and r2 > r1 > hw
     if rib_visible:
@@ -176,36 +196,33 @@ def draw_plan(Tv, sh, D, k):
             Tv.circle(0, 0, rj)
 
     # отверстия не льются: только оси будущих отверстий
-    for pcd, n, ang0, half in (
-        (D.PCD_OUTER, D.N_OUTER, opt(D, "PCD_OUTER_ANGLE0", 0.0), 4.0),
-        (D.PCD_INNER, D.N_INNER, opt(D, "PCD_INNER_ANGLE0", 45.0), 3.0),
-    ):
-        if not n:
-            continue
+    groups = hole_groups(D)
+    for i, (pcd, n, ang0) in enumerate(groups):
+        half = 4.0 if i == 0 else 3.0
         Tv.circle(0, 0, pcd / 2, "axis")
-        for i in range(n):
-            a = math.radians(ang0 + i * 360.0 / n)
+        for j in range(n):
+            a = math.radians(ang0 + j * 360.0 / n)
             cx, cy = pcd / 2 * math.cos(a), pcd / 2 * math.sin(a)
             Tv.axis(cx - half * k, cy, cx + half * k, cy)
             Tv.axis(cx, cy - half * k, cx, cy + half * k)
 
     # размеры ⌀ осевых окружностей: цифры в свободном поле литого отверстия
     rb = D.R_IN_TOP_CAST / k
-    for pcd, n, ang, side in ((D.PCD_OUTER, D.N_OUTER, 15.0, 1), (D.PCD_INNER, D.N_INNER, -15.0, -1)):
-        if not n:
-            continue
-        txt = f"{DIA}{fmt(pcd)}"
-        a = math.radians(ang)
+    for i, (pcd, n, ang0) in enumerate(groups):
+        side = 1 if i % 2 == 0 else -1
+        txt = f"{DIA}{fmt(pcd, 1)}"
+        a = math.radians(15.0 * side)
         c, s = math.cos(a), math.sin(a)
         r_sheet = pcd / 2 / k
         reach = 7.0 + text_width(txt, 3.5)
-        if rb >= reach + 3.0:
+        if i < 2 and rb >= reach + 3.0:
             tpos = 0.5 + side * (7.0 + text_width(txt, 3.5) / 2) / (2 * r_sheet)
             Tv.dim((-pcd / 2 * c, -pcd / 2 * s), (pcd / 2 * c, pcd / 2 * s), 0, txt,
                    ext1=False, ext2=False, tpos=tpos)
         else:
-            tip = Tv.P(side * pcd / 2 * math.cos(math.radians(75)), -pcd / 2 * math.sin(math.radians(75)))
-            knee = np.array([tip[0] + side * 10, Tv.P(0, -rmax)[1] - 7])
+            beta = math.radians(75 - 12 * (i // 2))
+            tip = Tv.P(side * pcd / 2 * math.cos(beta), -pcd / 2 * math.sin(beta))
+            knee = np.array([tip[0] + side * 10, Tv.P(0, -rmax)[1] - 7 - 6 * (i // 2)])
             sh.leader(tip, knee, txt, side="right" if side > 0 else "left", arrow=True)
 
     # секущая плоскость А-А: стрелка взгляда упирается в штрих
@@ -235,11 +252,16 @@ def tt_lines(D):
     if heat:
         body.append(f"Термическая обработка: {heat}.")
     body.append(f"Литейная усадка {fmt(D.SHRINKAGE, 1)} %.")
-    machined = opt(D, "MACHINED_NOTE", f"Отверстия {DIA}{fmt(D.D_THRU)}, цековки и М8 — мехобработкой.")
+    if hasattr(D, "MACHINED_NOTE"):
+        machined = D.MACHINED_NOTE
+    else:
+        machined = f"Отверстия {DIA}{fmt(D.D_THRU)}, цековки и М8 — мехобработкой."
     if machined:
         body.append(machined)
-    body.append("Тонкой линией показан контур детали.")
-    body.append(f"Припуск на обработку отверстия {fmt(D.ALLOW_BORE, 1)} мм на сторону.")
+    if D.ALLOW_TOP > 0 or D.ALLOW_BOT > 0 or D.ALLOW_BORE > 0:
+        body.append("Тонкой линией показан контур детали.")
+    if D.ALLOW_BORE > 0:
+        body.append(f"Припуск на обработку отверстия {fmt(D.ALLOW_BORE, 1)} мм на сторону.")
     body.append(f"ΣFп:Fшл:Fст = 1:1,1:1,2; ΣFп={fmt(D.SIGMA_FP, 2)} см².")
 
     lines = ["Технические требования"]

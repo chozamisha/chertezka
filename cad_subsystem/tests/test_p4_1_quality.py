@@ -13,12 +13,14 @@ sys.path.insert(0, str(ROOT))
 from eskd_cad import foundry  # noqa: F401
 from eskd_cad.calc import build_koleso_casting_result
 from eskd_cad.foundry.koleso_otlivka import build_koleso_otlivka
+from eskd_cad.geom import ocp_available
 from eskd_cad.qa.p4 import CheckStatus, run_quality_report
 from eskd_cad.qa.p4.datum_detect import detect_datums
 from eskd_cad.qa.p4.dim_map import build_dim_map
 from eskd_cad.qa.p4.duplicate_lines import classify_duplicate_lines
 
 
+@unittest.skipUnless(ocp_available(), "OCP8 venv not available")
 class TestP41Wheel(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

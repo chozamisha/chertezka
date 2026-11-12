@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+.pytest_cache/
+cad_subsystem/out/
+cad_work/out/
