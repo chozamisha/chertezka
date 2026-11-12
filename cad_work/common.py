@@ -8,32 +8,31 @@ from cad import text_width
 DIA = "\u2300"
 
 
-def fix_stamp_two_line_cells(sh, by=5.0):
+def fix_stamp_two_line_cells(sh, by=5.0, material=("СЧ15", "ГОСТ 1412-85"),
+                             org=("СФУ ИЦМ", "гр. ЗЦМ22-01Б")):
     """Переставить двухстрочные тексты в графах материала/организации,
     чтобы bbox не пересекались при обязательных двух строках орг."""
-    # удаляем и рисуем заново тексты в зоне org/material (y≈5..20, x>295)
+    material = [material] if isinstance(material, str) else list(material)
+    org = list(org)
+    drop = set(material) | set(org) | {" ".join(material)}
     keep = []
-    removed = []
     for e in sh.ents:
         if e[0] != "text":
             keep.append(e)
             continue
         (x, y), s, h, ha, va, rot = e[1:]
-        if rot == 0 and 5.0 <= y <= 20.5 and x >= 295 and h >= 3.0:
-            # кандидаты: материал и организация в нижней части штампа
-            if s in ("СФУ ИЦМ", "гр. ЗЦМ22-01Б", "СЧ15", "ГОСТ 1412-85", "СЧ15 ГОСТ 1412-85"):
-                removed.append(e)
-                continue
-            if "ГОСТ 1412" in str(s) or str(s).startswith("СЧ"):
-                removed.append(e)
-                continue
+        if rot == 0 and 5.0 <= y <= 20.5 and x >= 295 and h >= 3.0 and s in drop:
+            continue
         keep.append(e)
     sh.ents = keep
     # материал одной строкой по центру графы
-    sh.text(230 + 65 + 35, by + 7.5, "СЧ15 ГОСТ 1412-85", h=3.5, ha="center", va="center")
+    sh.text(230 + 65 + 35, by + 7.5, " ".join(material), h=3.5, ha="center", va="center")
     # организация: две строки с шагом 6.5 мм
-    sh.text(230 + 65 + 70 + 25, by + 11.0, "СФУ ИЦМ", h=3.5, ha="center", va="center")
-    sh.text(230 + 65 + 70 + 25, by + 4.5, "гр. ЗЦМ22-01Б", h=3.5, ha="center", va="center")
+    if len(org) == 1:
+        sh.text(230 + 65 + 70 + 25, by + 7.5, org[0], h=3.5, ha="center", va="center")
+    else:
+        sh.text(230 + 65 + 70 + 25, by + 11.0, org[0], h=3.5, ha="center", va="center")
+        sh.text(230 + 65 + 70 + 25, by + 4.5, org[1], h=3.5, ha="center", va="center")
 
 
 def cbo_glyph(sh, x, y, h=3.5):
