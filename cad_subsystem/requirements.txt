@@ -1,0 +1,5 @@
+# Системный/user site для CAD MVP (Linux)
+ezdxf>=1.4
+shapely>=2.0
+numpy>=1.26
+matplotlib>=3.8
