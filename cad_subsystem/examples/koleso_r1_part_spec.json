@@ -1,0 +1,89 @@
+{
+  "schema": 2,
+  "part_id": "koleso_rabochee_r1",
+  "designation": "",
+  "name": ["Колесо рабочее"],
+  "material": [],
+  "mass_kg": null,
+  "scale": null,
+  "profile": "koleso_r1",
+  "dimensions": {
+    "d_out": 280.0,
+    "d_hub_top": 100.0,
+    "d_shoulder": 180.0,
+    "d_bore": 30.0,
+    "d_recess": 50.0,
+    "recess_depth": 2.5,
+    "bore_depth": 34.0,
+    "d_bot_open": 85.0,
+    "d_pcd_holes": 120.0,
+    "d_hole": 10.0,
+    "n_holes": 6.0,
+    "t_disk_top": 15.0,
+    "h_channel": 30.0,
+    "t_disk_bot": 15.0,
+    "h_hub_above_disk": 42.0,
+    "shoulder_h": 5.0,
+    "r_shroud_in": 65.0,
+    "r_shroud_out": 90.0,
+    "r_fillet_bot": 5.0,
+    "r_nose": 10.0,
+    "r_vane_out": 100.0,
+    "r_vane_in": 80.0,
+    "r_vane_root": 5.0,
+    "n_vanes": 4.0,
+    "offset_r90": 80.0
+  },
+  "holes": [
+    {
+      "pcd": 120.0,
+      "n": 6,
+      "d": 10.0,
+      "angle0": 0.0,
+      "kind": "thru",
+      "label": "6 отв. ⌀10"
+    }
+  ],
+  "ribs": null,
+  "roughness": {
+    "disk_faces": "Ra 6,3",
+    "bore": "Ra 2,5",
+    "recess": "Ra 2,5",
+    "general": null
+  },
+  "stamp": {
+    "dev": "",
+    "chk": "",
+    "org": [],
+    "lit": ""
+  },
+  "notes": {
+    "source_title": "Рисунок 1 – Колесо рабочее",
+    "vanes": "4 лопасти, профиль R100 / R80, корень R5"
+  },
+  "provenance": {
+    "source": "inbox/examples/koleso_rabochee_risunok1.jpg",
+    "d_out": "вид сверху ⌀280",
+    "d_hub_top": "разрез ⌀100",
+    "d_shoulder": "разрез ⌀180",
+    "d_bore": "разрез ⌀30",
+    "d_recess": "разрез ⌀50 × 2,5",
+    "bore_depth": "разрез 34",
+    "d_bot_open": "разрез ⌀85",
+    "d_pcd_holes": "вид сверху ⌀120, 6 отв. ⌀10",
+    "disks": "разрез 15 / 30 / 15",
+    "h_hub_above_disk": "разрез 42 над верхним диском",
+    "r_shroud": "разрез R65 / R90",
+    "vanes": "вид сверху R100 / R80 / R5; число лопастей снято с вида (4)"
+  },
+  "questions": [
+    "На листе нет штампа: нужны обозначение, материал, масса, Разраб./Пров./организация.",
+    "Число лопастей на виде сверху читается неоднозначно на растре — принято 4 (как на подписи к типовому рис.1); подтвердите 4 или 6.",
+    "⌀70 на разрезе у ступицы: внутренний поясок или проекция отверстий? В PartSpec отверстия взяты с вида сверху (⌀120).",
+    "Припуски и класс точности отливки на исходнике не заданы."
+  ],
+  "warnings": [
+    "Это не КП-062215009-01 (там ⌀825). Геометрия только с «Рисунок 1»."
+  ],
+  "source_path": "inbox/examples/koleso_rabochee_risunok1.jpg"
+}
