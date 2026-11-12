@@ -1,0 +1,46 @@
+{
+  "mold_position": {
+    "value": "верхний фланец вверху формы, разъём по плоскости нижнего фланца",
+    "source": "инженер",
+    "confirmed": true,
+    "note": ""
+  },
+  "machined_bore": {
+    "value": true,
+    "source": "инженер",
+    "confirmed": true,
+    "note": "на исходнике знака на отверстии нет — подтверждаем припуск на сторону"
+  },
+  "allow_top": {"value": 4.0, "source": "инженер / ГОСТ 26645-85", "confirmed": true, "note": "мм"},
+  "allow_bottom": {"value": 3.0, "source": "инженер / ГОСТ 26645-85", "confirmed": true, "note": "мм"},
+  "allow_bore": {"value": 2.0, "source": "инженер / ГОСТ 26645-85", "confirmed": true, "note": "мм на сторону"},
+  "accuracy": {"value": "9-7-12-9", "source": "инженер", "confirmed": true, "note": ""},
+  "draft_ext": {"value": 1.5, "source": "ГОСТ 3212-92", "confirmed": true, "note": "градусы"},
+  "draft_int": {"value": 2.0, "source": "ГОСТ 3212-92", "confirmed": true, "note": "градусы"},
+  "r_fillet": {"value": 5.0, "source": "инженер", "confirmed": true, "note": "мм"},
+  "heat_treatment": {"value": "отжиг 500…550 °С", "source": "инженер", "confirmed": true, "note": "или null"},
+  "mass_cast_kg": {
+    "value": null,
+    "source": "null = масса детали + припуски + незалитые отверстия",
+    "confirmed": true,
+    "note": "можно задать числом, если штамп отливки фиксирован"
+  },
+  "rib_angle0": {
+    "value": 30.0,
+    "source": "рёбра между отверстиями, не в плоскости А-А",
+    "confirmed": true,
+    "note": ""
+  },
+  "gating": {
+    "value": {
+      "tau_coeff": 1.8,
+      "h_met_m": 0.18,
+      "mu": 0.4,
+      "rho_liquid": 6900.0,
+      "n_feeders": 2
+    },
+    "source": "инженер",
+    "confirmed": true,
+    "note": "ΣFп:Fшл:Fст = 1:1,1:1,2"
+  }
+}

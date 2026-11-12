@@ -1,0 +1,27 @@
+{
+  "mold_position": {
+    "value": "ступица вверх, разъём по середине канала",
+    "source": "лист расчёта; подтверждено инженером",
+    "confirmed": true
+  },
+  "allow_top": {"value": 6.0, "source": "подтверждено инженером", "confirmed": true, "note": "мм"},
+  "allow_bot": {"value": 5.0, "source": "подтверждено инженером", "confirmed": true, "note": "мм"},
+  "allow_face": {"value": 5.0, "source": "подтверждено инженером", "confirmed": true, "note": "мм, торцы дисков"},
+  "allow_hub_od": {"value": 4.0, "source": "подтверждено инженером", "confirmed": true, "note": "мм на сторону"},
+  "allow_bore": {"value": 4.0, "source": "подтверждено инженером", "confirmed": true, "note": "мм на сторону"},
+  "allow_boss": {"value": 3.0, "source": "подтверждено инженером", "confirmed": true, "note": "мм на сторону"},
+  "shrinkage": {"value": 1.9, "source": "ИЧХ28Н2; подтверждено через лист расчёта", "confirmed": true, "note": "%"},
+  "mass_cast_kg": {
+    "value": 420.0,
+    "source": "подтверждено инженером",
+    "confirmed": true,
+    "note": "масса детали 340 кг"
+  },
+  "d_riser": {"value": 300.0, "source": "лист расчёта; подтверждено инженером", "confirmed": true},
+  "d_neck": {"value": 240.0, "source": "лист расчёта; подтверждено инженером", "confirmed": true},
+  "h_riser": {"value": 300.0, "source": "лист расчёта; подтверждено инженером", "confirmed": true},
+  "l_print": {"value": 60.0, "source": "лист расчёта; подтверждено инженером", "confirmed": true},
+  "h_print2": {"value": 40.0, "source": "лист расчёта; подтверждено инженером", "confirmed": true},
+  "f_pit": {"value": 12.0, "source": "лист расчёта; подтверждено инженером", "confirmed": true, "note": "см²"},
+  "n_pit": {"value": 2, "source": "лист расчёта; подтверждено инженером", "confirmed": true}
+}

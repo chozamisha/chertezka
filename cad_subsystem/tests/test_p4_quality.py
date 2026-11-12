@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT))
 from eskd_cad import foundry  # noqa: F401
 from eskd_cad.calc import build_koleso_casting_result
 from eskd_cad.foundry.koleso_otlivka import build_koleso_otlivka
+from eskd_cad.geom import ocp_available
 from eskd_cad.qa.p4 import CheckStatus, QualityReport, run_quality_report, write_quality_report
 from eskd_cad.qa.p4.status import CheckResult
 
@@ -58,6 +59,7 @@ class TestP4StatusSemantics(unittest.TestCase):
         self.assertTrue(r.errors)
 
 
+@unittest.skipUnless(ocp_available(), "OCP8 venv not available")
 class TestP4WheelReport(unittest.TestCase):
     def test_run_report_wheel(self):
         calc = build_koleso_casting_result()
