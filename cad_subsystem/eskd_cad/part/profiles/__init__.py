@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Профили детали → отливка (korpus, позже koleso/generic)."""
-from . import korpus
+"""Профили детали → отливка (korpus, koleso)."""
+from . import koleso, korpus
 
-__all__ = ["korpus"]
+__all__ = ["korpus", "koleso"]

@@ -25,9 +25,10 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Деталь DXF/JSON → отливка (профиль korpus)")
     p.add_argument("input", help="DXF детали или PartSpec JSON")
     p.add_argument("--out", default="out/part_to_casting", help="каталог артефактов")
-    p.add_argument("--profile", default="auto", choices=["auto", "korpus"])
+    p.add_argument("--profile", default="auto", choices=["auto", "korpus", "koleso"])
     p.add_argument("--decisions", help="JSON с переопределениями технологических решений")
-    p.add_argument("--render", action="store_true", help="собрать лист через cad_work/draw_otl")
+    p.add_argument("--render", action="store_true",
+                   help="собрать лист (korpus→cad_work, koleso→eskd_cad.foundry)")
     p.add_argument(
         "--confirm-all",
         action="store_true",
@@ -38,6 +39,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="писать PDF даже при замечаниях QA / неподтверждённых решениях",
     )
+    p.add_argument("--ocp", action="store_true", help="для koleso: контуры через OCP8, если есть venv")
     args = p.parse_args(argv)
 
     result = run(
@@ -48,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         decisions_path=args.decisions,
         confirm_all=args.confirm_all,
         force_render=args.force_render,
+        use_ocp=args.ocp,
     )
     print(json.dumps({k: v for k, v in result.items() if k != "qa_issues"},
                      ensure_ascii=False, indent=2))

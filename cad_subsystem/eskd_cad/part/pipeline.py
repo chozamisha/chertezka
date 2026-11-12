@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 from . import decisions as decisions_mod
 from .part_spec import CastingDraft, PartSpec
-from .profiles import korpus
+from .profiles import koleso, korpus
 
 REPO = Path(__file__).resolve().parents[3]
 CAD_WORK = REPO / "cad_work"
@@ -28,19 +28,32 @@ def part_from_input(path: str | Path, *, profile: str = "auto") -> PartSpec:
         part = load_part_json(path)
     elif path.suffix.lower() == ".dxf":
         if profile not in ("auto", "korpus"):
-            raise ValueError(f"Неизвестный profile={profile!r}; доступны auto|korpus")
+            raise ValueError(
+                f"Из DXF сейчас читается только profile=korpus; для koleso передайте PartSpec JSON "
+                f"(получено profile={profile!r})"
+            )
         part = korpus.part_from_dxf(str(path))
     else:
         raise ValueError(f"Поддержаны .dxf и PartSpec .json, получено: {path.suffix}")
 
-    if profile == "korpus" or part.profile == "korpus":
+    if profile in ("korpus", "koleso"):
+        if part.profile != profile:
+            raise ValueError(f"Файл имеет profile={part.profile!r}, запрошен {profile!r}")
         return part
-    if profile == "auto" and part.profile == "korpus":
-        return part
+    if profile == "auto":
+        if part.profile in ("korpus", "koleso"):
+            return part
     raise ValueError(
-        f"Профиль {part.profile!r} не поддержан. Сейчас работает только korpus "
-        "(полое тело вращения с двумя фланцами). Передайте PartSpec JSON с profile=korpus."
+        f"Профиль {part.profile!r} не поддержан. Доступны korpus и koleso."
     )
+
+
+def _validate(part: PartSpec):
+    if part.profile == "korpus":
+        return korpus.validate(part)
+    if part.profile == "koleso":
+        return koleso.validate(part)
+    return [f"нет validate для {part.profile!r}"], []
 
 
 def build_casting(
@@ -51,9 +64,12 @@ def build_casting(
 ) -> CastingDraft:
     overrides = decisions_mod.load_overrides(decisions_path) if decisions_path else None
     resolved = decisions_mod.resolve(part, overrides, confirm_all=confirm_all)
-    if part.profile != "korpus":
+    if part.profile == "korpus":
+        draft = korpus.build_casting(part, resolved)
+    elif part.profile == "koleso":
+        draft = koleso.build_casting(part, resolved)
+    else:
         raise ValueError(f"Нет to_casting для profile={part.profile!r}")
-    draft = korpus.build_casting(part, resolved)
     open_qs = decisions_mod.unconfirmed(resolved)
     if open_qs:
         draft.questions = list(draft.questions) + [
@@ -64,19 +80,51 @@ def build_casting(
     return draft
 
 
+def _jsonable(obj: Any) -> Any:
+    if hasattr(obj, "as_dict"):
+        return obj.as_dict()
+    if hasattr(obj, "__dataclass_fields__"):
+        from dataclasses import asdict, is_dataclass
+        if is_dataclass(obj):
+            return asdict(obj)
+    if isinstance(obj, dict):
+        return {k: _jsonable(v) for k, v in obj.items() if not str(k).startswith("_raw")}
+    if isinstance(obj, (list, tuple)):
+        return [_jsonable(v) for v in obj]
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+    return repr(obj)
+
+
 def write_json(obj: Dict[str, Any] | PartSpec | CastingDraft, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = obj.as_dict() if hasattr(obj, "as_dict") else obj
+    if isinstance(obj, CastingDraft):
+        data = {
+            "profile": obj.profile,
+            "designation": obj.designation,
+            "params": {k: _jsonable(v) for k, v in obj.params.items()
+                       if k not in ("SPEC", "CALC")},
+            "provenance": obj.provenance,
+            "warnings": obj.warnings,
+            "questions": obj.questions,
+        }
+        # краткие поля spec для чтения человеком
+        spec = obj.params.get("SPEC")
+        if spec is not None and hasattr(spec, "key_params"):
+            data["params"]["spec_key"] = spec.key_params()
+    elif hasattr(obj, "as_dict"):
+        data = obj.as_dict()
+    else:
+        data = _jsonable(obj)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _params_module(params: Dict[str, Any]) -> types.SimpleNamespace:
-    clean = {k: v for k, v in params.items() if not k.startswith("_")}
+    clean = {k: v for k, v in params.items() if not k.startswith("_") and k not in ("SPEC", "CALC")}
     return types.SimpleNamespace(**clean)
 
 
 def _load_cad_work_draw_otl():
-    """Импорт cad_work/draw_otl без конфликтов с drawings/cad.py."""
     for name in ("draw_otl", "cad", "common", "qa_check", "qa_extra", "korpus_data"):
         mod = sys.modules.get(name)
         if mod is not None and "drawings" in str(getattr(mod, "__file__", "")):
@@ -94,12 +142,6 @@ def render_korpus_otlivka(
     out_dir: Path,
     force: bool = False,
 ) -> Dict[str, Any]:
-    """
-    Лист отливки через cad_work/draw_otl.build.
-
-    Без force PDF пишется только если qa_check+qa_extra чисты и все решения
-    подтверждены. Иначе — PNG черновика и список замечаний.
-    """
     if draft.profile != "korpus":
         raise ValueError("render_korpus_otlivka только для profile=korpus")
     out_dir = Path(out_dir)
@@ -135,6 +177,67 @@ def render_korpus_otlivka(
     return result
 
 
+def render_koleso_otlivka(
+    draft: CastingDraft,
+    *,
+    out_dir: Path,
+    force: bool = False,
+    use_ocp: bool | None = False,
+) -> Dict[str, Any]:
+    """Лист отливки колеса через eskd_cad.foundry (DrawingDocument → DXF/PDF)."""
+    if draft.profile != "koleso":
+        raise ValueError("render_koleso_otlivka только для profile=koleso")
+    from eskd_cad import foundry  # noqa: F401
+    from eskd_cad.export import export_dxf, export_pdf
+    from eskd_cad.foundry.koleso_otlivka import build_koleso_otlivka
+    from eskd_cad.qa.geometry_check import check_document
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    spec = draft.params["SPEC"]
+    doc = build_koleso_otlivka(spec, use_ocp=bool(use_ocp))
+    issues = [str(x) for x in check_document(doc)]
+    unconfirmed = list(draft.params.get("_unconfirmed") or [])
+    stem = draft.designation or "otlivka"
+    dxf = out_dir / f"{stem}_Otlivka.dxf"
+    pdf = out_dir / f"{stem}_Otlivka.pdf"
+    png = out_dir / f"{stem}_Otlivka.png"
+    export_dxf(doc, dxf)
+    result = {
+        "dxf": str(dxf),
+        "qa_issues": issues,
+        "unconfirmed": unconfirmed,
+        "final": False,
+        "renderer": "eskd_cad.foundry.koleso_otlivka",
+        "use_ocp": bool(use_ocp),
+    }
+    clean = not issues and not unconfirmed
+    if clean or force:
+        export_pdf(doc, pdf)
+        result["pdf"] = str(pdf)
+        try:
+            import fitz
+            page = fitz.open(pdf)[0]
+            pix = page.get_pixmap(matrix=fitz.Matrix(150 / 72, 150 / 72), alpha=False)
+            pix.save(str(png))
+            result["png"] = str(png)
+        except Exception as exc:  # pragma: no cover
+            result["png_error"] = str(exc)
+        result["final"] = clean and not force
+        if force and (issues or unconfirmed):
+            result["forced"] = True
+    return result
+
+
+def render_otlivka(draft: CastingDraft, *, out_dir: Path, force: bool = False,
+                   use_ocp: bool | None = False) -> Dict[str, Any]:
+    if draft.profile == "korpus":
+        return render_korpus_otlivka(draft, out_dir=out_dir, force=force)
+    if draft.profile == "koleso":
+        return render_koleso_otlivka(draft, out_dir=out_dir, force=force, use_ocp=use_ocp)
+    raise ValueError(f"Нет рендера для profile={draft.profile!r}")
+
+
 def run(
     input_path: str | Path,
     *,
@@ -144,12 +247,13 @@ def run(
     decisions_path: str | Path | None = None,
     confirm_all: bool = False,
     force_render: bool = False,
+    use_ocp: bool | None = False,
 ) -> Dict[str, Any]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
     part = part_from_input(input_path, profile=profile)
-    errors, warnings = korpus.validate(part) if part.profile == "korpus" else ([], [])
+    errors, warnings = _validate(part)
     part.warnings = list(dict.fromkeys(list(part.warnings) + warnings))
     write_json(part, out / "part_spec.json")
 
@@ -159,6 +263,7 @@ def run(
         "warnings": list(part.warnings),
         "errors": errors,
         "designation": None,
+        "profile": part.profile,
     }
     if errors:
         result["status"] = "part_invalid"
@@ -179,7 +284,7 @@ def run(
     })
 
     if render:
-        rendered = render_korpus_otlivka(draft, out_dir=out, force=force_render)
+        rendered = render_otlivka(draft, out_dir=out, force=force_render, use_ocp=use_ocp)
         result.update(rendered)
         if rendered.get("final"):
             result["status"] = "final"

@@ -42,6 +42,89 @@ def fmt(v: float, n: int = 1) -> str:
     return ("%.*f" % (n, v)).replace(".", ",")
 
 
+def default_decisions(part: PartSpec) -> Dict[str, Decision]:
+    """Решения по умолчанию для korpus. Неподтверждённые требуют ответа инженера."""
+    kit = "эталонный комплект «Корпус» в репозитории, не исходный чертёж"
+    rule = "правило .cursor/rules/eskd.mdc"
+    source = "исходный чертёж детали"
+    rough, stamp = part.roughness, part.stamp
+    out: Dict[str, Decision] = {}
+
+    code = part.designation
+    if code.endswith("-00"):
+        out["designation_casting"] = Decision(code[:-3] + "-01", f"{rule}: деталь -00, отливка -01", True)
+    else:
+        out["designation_casting"] = Decision(
+            f"{code}-01" if code else "", "суффикс -01 к обозначению детали", False,
+            "обозначение детали не оканчивается на -00")
+
+    out["mold_position"] = Decision(
+        "верхний фланец вверху формы, разъём по плоскости нижнего фланца", kit, False,
+        "от положения в форме зависит, какой торец получает больший припуск")
+
+    for key, face, label in (("machined_top", "top", "верхний торец"),
+                             ("machined_bottom", "bottom", "нижний торец")):
+        if rough.get(face):
+            out[key] = Decision(True, f"{source}: знак {rough[face]} на поверхности «{label}»", True)
+        else:
+            out[key] = Decision(True, kit, False, f"знак шероховатости на поверхности «{label}» не найден")
+    if rough.get("bore"):
+        out["machined_bore"] = Decision(True, f"{source}: знак {rough['bore']} на отверстии", True)
+    else:
+        out["machined_bore"] = Decision(True, kit, False,
+                                        "на исходном чертеже знака на центральном отверстии нет")
+
+    gost = "ГОСТ 26645-85; таблиц допусков в репозитории нет, значение взято из эталонного комплекта"
+    out["allow_top"] = Decision(4.0, gost, False, "мм, верхний торец")
+    out["allow_bottom"] = Decision(3.0, gost, False, "мм, нижний торец")
+    out["allow_bore"] = Decision(2.0, gost, False, "мм на сторону, центральное отверстие")
+    out["accuracy"] = Decision("9-7-12-9", gost, False, "класс точности отливки для ТТ")
+    out["draft_ext"] = Decision(1.5, f"ГОСТ 3212-92; {kit}", False, "градусы, наружные поверхности")
+    out["draft_int"] = Decision(2.0, f"ГОСТ 3212-92; {kit}", False, "градусы, внутренние поверхности")
+    out["shrinkage"] = Decision(1.0, f"{rule}: усадка 1 %", True)
+    out["r_fillet"] = Decision(5.0, kit, False,
+                               "мм; в ТТ детали: " + part.notes["radii"] if part.notes.get("radii") else "мм")
+
+    faces = rough.get("top") or rough.get("bottom")
+    out["ra_faces"] = (Decision(faces, f"{source}: знак на торце", True) if faces
+                       else Decision("Ra 6,3", kit, False))
+    out["ra_general"] = (Decision(rough["general"], f"{source}: знак в правом верхнем углу", True)
+                         if rough.get("general") else Decision("Ra 12,5", kit, False))
+    out["hardness"] = (Decision(part.notes["hardness"], f"{source}: технические требования", True)
+                       if part.notes.get("hardness") else Decision(None, "на исходном чертеже не указана", True))
+    out["heat_treatment"] = Decision("отжиг 500…550 °С", kit, False, "пункт ТТ; null, если не нужен")
+    out["mass_cast_kg"] = Decision(None, f"{rule}: масса детали плюс припуски", False,
+                                   "null: считать как масса детали из штампа + припуски и напуски по геометрии")
+
+    if part.ribs:
+        step = 360.0 / part.ribs.n
+        a0 = part.ribs.angle0 % step
+        in_plane = min(a0, step - a0) < 1.0 or any(
+            abs((ang - a0 + step / 2) % step - step / 2) < 1.0 for ang in (0.0, 180.0))
+        if in_plane:
+            out["rib_angle0"] = Decision(
+                step / 2, f"{rule}: рёбра не в секущей плоскости А-А", False,
+                f"на исходном чертеже рёбра показаны под {a0:g}°, то есть в плоскости разреза")
+        else:
+            out["rib_angle0"] = Decision(a0, source, True)
+
+    for key, label in (("dev", "Разраб."), ("chk", "Пров."), ("lit", "Лит.")):
+        if stamp.get(key):
+            out[key] = Decision(stamp[key], f"{source}: графа «{label}»", True)
+        else:
+            out[key] = Decision("", f"графа «{label}» не прочитана", False)
+    if stamp.get("org"):
+        out["org"] = Decision(list(stamp["org"]), f"{source}: графа организации", True)
+    else:
+        out["org"] = Decision([], "графа организации не прочитана", False)
+
+    out["gating"] = Decision(
+        {"tau_coeff": 1.8, "h_met_m": 0.18, "mu": 0.4, "rho_liquid": 6900.0, "n_feeders": 2},
+        f"{rule}: ΣFп:Fшл:Fст = 1:1,1:1,2; коэффициенты из расчёта эталонного комплекта", False,
+        "τ = k·√G, ΣFп = G / (ρ·μ·τ·√(2gH))")
+    return out
+
+
 # ---------------------------------------------------------------- DXF → PartSpec
 
 def _choose_scale(stamp, measures: List[Tuple[float, str]], snapper: Snapper, part: PartSpec) -> float:

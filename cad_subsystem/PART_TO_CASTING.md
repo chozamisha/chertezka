@@ -1,15 +1,19 @@
 # Деталь → отливка
 
-Пайплайн для профиля **korpus** (полое тело вращения с двумя фланцами):
-учебный «Корпус» ПП-062215009 и любые детали той же топологии с другими размерами.
+Пайплайн для профилей:
+
+- **korpus** — полое тело вращения с двумя фланцами (ПП-062215009 и варианты).
+- **koleso** — рабочее колесо (КП-062215009-01); геометрия из PartSpec JSON,
+  расчёт/рендер через `eskd_cad.calc` + `eskd_cad.foundry` (не `cad_work/draw_otl`).
 
 ```
 исходный чертёж  →  PartSpec  →  decisions  →  CastingDraft  →  лист PDF
-   DXF / JSON         JSON         JSON         JSON          cad_work/draw_otl
+   DXF / JSON         JSON         JSON         JSON       korpus: cad_work
+                                                       koleso: eskd_cad.foundry
 ```
 
-Канонический рендер — `cad_work/` (с `qa_check` + `qa_extra`). Каталог `drawings/` —
-архив эталонного комплекта, не точка входа.
+Для korpus канонический рендер — `cad_work/` (`qa_check` + `qa_extra`).  
+`drawings/` — архив эталонного комплекта Корпуса, не точка входа.
 
 ## Быстрый старт
 
@@ -67,10 +71,22 @@ python3 -m examples.part_dxf_to_casting \
 Замечания самой рамки `cad.py` (графа «Изм.» через фамилии и т.п.) в `qa_extra.tool_defects`
 и в сдачу листа не входят: правило запрещает переписывать `cad.py`.
 
+## Колесо с загруженного чертежа
+
+Исходник: `inbox/examples/koleso_rabochee_KP-062215009-01.jpg`.  
+Снятый PartSpec: `examples/koleso_part_spec.json`.
+
+```bash
+python3 -m examples.part_dxf_to_casting examples/koleso_part_spec.json \
+  --profile koleso --out out/koleso_from_source --render --confirm-all
+```
+
+Обозначение детали и отливки совпадают (`КП-062215009-01`). Припуски и масса
+отливки 420 кг — из листа расчёта; на исходнике проставлены чистовые размеры и Ra 2,5.
+
 ## Ограничения
 
-- Только профиль korpus. Колесо / произвольная отливка — отдельный профиль.
+- DXF→PartSpec автоматом только для korpus; koleso — через PartSpec JSON.
 - МЛУ (-02) из пайплайна пока не собирается.
-- Таблиц ГОСТ 26645 в репозитории нет: числа припусков — из эталонного комплекта,
-  пока инженер не подтвердит другие.
+- Для korpus таблиц ГОСТ 26645 в репо нет: припуски из эталона, пока не подтвердят.
 - OCR растра нет: PNG/PDF детали → PartSpec руками/агентом.
