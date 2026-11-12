@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Чертежи отливок — DXF / PDF</title>
+  <style>
+    :root {
+      --bg: #f3f1ec;
+      --ink: #1a1a1a;
+      --muted: #5a5a5a;
+      --line: #c8c2b6;
+      --card: #fffef9;
+      --accent: #0b5fff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    header {
+      padding: 1.5rem 1.25rem 1rem;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fff 0%, var(--bg) 100%);
+    }
+    h1 { margin: 0 0 0.35rem; font-size: 1.35rem; font-weight: 650; }
+    header p { margin: 0; color: var(--muted); font-size: 0.95rem; max-width: 42rem; }
+    main { padding: 1.25rem; display: grid; gap: 1.5rem; max-width: 1100px; margin: 0 auto; }
+    article {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    article h2 {
+      margin: 0;
+      padding: 0.9rem 1rem;
+      font-size: 1.05rem;
+      border-bottom: 1px solid var(--line);
+      background: #faf8f3;
+    }
+    .preview {
+      background: #e8e4dc;
+      padding: 0.75rem;
+      text-align: center;
+    }
+    .preview img {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      padding: 1rem;
+    }
+    a.btn {
+      display: inline-block;
+      padding: 0.55rem 0.9rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.92rem;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+    }
+    a.btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    a.btn:hover { filter: brightness(0.97); }
+    footer {
+      padding: 1rem 1.25rem 2rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Технологические чертежи (временный хост)</h1>
+    <p>
+      Редактируемые DXF и PDF из единого пути CastingSpec → eskd_cad.
+      Откройте PNG/PDF прямо в браузере или скачайте DXF для LibreCAD / КОМПАС.
+    </p>
+  </header>
+  <main>
+    <article>
+      <h2>КП-062215009-01 — Колесо рабочее. Отливка</h2>
+      <div class="preview">
+        <img src="files/KP-062215009-01_Otlivka.png" alt="Отливка колеса — превью" />
+      </div>
+      <div class="actions">
+        <a class="btn primary" href="files/KP-062215009-01_Otlivka.pdf" target="_blank" rel="noopener">Открыть PDF</a>
+        <a class="btn" href="files/KP-062215009-01_Otlivka.dxf" download>Скачать DXF</a>
+        <a class="btn" href="files/KP-062215009-01_Otlivka.png" target="_blank" rel="noopener">Открыть PNG</a>
+      </div>
+    </article>
+
+    <article>
+      <h2>TEST-CAD-0001 — Фланец (тест CAD-подсистемы)</h2>
+      <div class="preview">
+        <img src="files/TEST_FLANGE.png" alt="Тестовый фланец — превью" />
+      </div>
+      <div class="actions">
+        <a class="btn primary" href="files/TEST_FLANGE.pdf" target="_blank" rel="noopener">Открыть PDF</a>
+        <a class="btn" href="files/TEST_FLANGE.dxf" download>Скачать DXF</a>
+        <a class="btn" href="files/TEST_FLANGE.png" target="_blank" rel="noopener">Открыть PNG</a>
+      </div>
+    </article>
+  </main>
+  <footer>
+    Linux-only, без AutoCAD. Основной путь генерации: <code>python3 -m examples.generate_koleso_otlivka</code>
+  </footer>
+</body>
+</html>

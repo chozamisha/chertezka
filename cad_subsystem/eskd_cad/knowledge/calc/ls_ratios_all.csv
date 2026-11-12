@@ -1,0 +1,13 @@
+alloy_or_case,F_pit,F_slag,F_sprue,system_type,source_note
+steel_rotary_ladle,1.0,1.2,1.4,contracting,Churkin / pack default steel
+steel_stopper_ladle,1.0,1.15,1.3,contracting,Churkin
+steel_small_contracting,1.0,1.1,1.2,contracting,Spravochnik liteychika tab.144
+steel_medium_large_expanding,1.0-1.5,1.0,1.0,expanding,Spravochnik tab.144
+grey_iron_small_medium,1.0,1.1,1.2,contracting,Spravochnik tab.144
+grey_iron_large,1.0,1.2,1.4,contracting,Spravochnik / BIBT
+grey_iron_thinwall_alt,1.0,1.06,1.1,contracting,BIBT hydraulic method alt
+ICHX_academic_default,1.0,1.2,1.4,contracting,Academic: white/high-Cr iron → cast-iron contracting branch; mark source in calc
+ICHX_academic_alt_small,1.0,1.1,1.2,contracting,If small/medium casting; mark source
+malleable_iron,1.0,0.9,1.0,combined,Spravochnik tab.144
+aluminum,3.0,2.0,1.0,expanding,Spravochnik tab.144
+copper_alloys,1.0,1.5-1.7,0.75-1.0,combined,Spravochnik tab.144

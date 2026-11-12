@@ -1,0 +1,139 @@
+{
+  "standard": "GOST 3212-92",
+  "table": 7,
+  "clause": "2.3",
+  "page_pdf": "С.7 (Таблица 7); С.8 (п.2.3.3)",
+  "unit": "mm",
+  "meaning": "Высота нижнего вертикального стержневого знака hн, мм, не более, при высоте рабочей части стержня L и сечении D или (a+b)/2",
+  "molding": "all_mixtures_per_clause_2_3",
+  "primary_source": "GOST_3212-92.pdf (pack sources/files; vendored extract below)",
+  "secondary_sources": [
+    "Mikhaltsov_2011_glava5_sterzhni.txt table 5.2 (cites GOST 3212)",
+    "sterzhni_raschet.md §2 (pack tables; cell-by-cell vs PDF OCR noisy)"
+  ],
+  "inputs": {
+    "D_mm": "диаметр сечения стержня или (a+b)/2, мм",
+    "L_mm": "высота рабочей части вертикального стержня, мм (не высота знака)"
+  },
+  "cell_policy": {
+    "max": "numeric upper bound (не более); H_PRINT2 must be ≤ value",
+    "unavailable": "ячейка «—» / не нормирована — lookup не возвращает число",
+    "no_interpolation": true,
+    "range_cells": "не используются в этой оцифровке; где MD давал диапазон 20–25, строки До25 и 25–40 разведены"
+  },
+  "verification_note": "Полная поклеточная OCR-сверка PDF затруднена (скан). В runtime допущены только ячейки, согласованные Михальцов 5.2 ↔ sterzhni_raschet.md §2 и не противоречащие читаемым фрагментам PDF С.7. Лишние столбцы L>1000 из PDF в эту версию не включены (unverified).",
+  "columns_L": [
+    "0-40",
+    "40-63",
+    "63-100",
+    "100-160",
+    "160-250",
+    "250-400",
+    "400-630",
+    "630-1000"
+  ],
+  "rows": {
+    "0-25": [
+      {"kind": "max", "value": 20, "verified": true, "sources": ["mikhaltsov_5_2", "pdf_s7_partial"]},
+      {"kind": "max", "value": 30, "verified": true, "sources": ["mikhaltsov_5_2", "pdf_s7_partial"]},
+      {"kind": "max", "value": 30, "verified": true, "sources": ["mikhaltsov_5_2", "pdf_s7_partial"]},
+      {"kind": "max", "value": 30, "verified": true, "sources": ["mikhaltsov_5_2", "pdf_s7_partial"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "pdf_s7_partial"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "pdf_s7_partial"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2"]}
+    ],
+    "25-40": [
+      {"kind": "max", "value": 25, "verified": true, "sources": ["mikhaltsov_5_2"]},
+      {"kind": "max", "value": 30, "verified": true, "sources": ["mikhaltsov_5_2"]},
+      {"kind": "max", "value": 30, "verified": true, "sources": ["mikhaltsov_5_2"]},
+      {"kind": "max", "value": 30, "verified": true, "sources": ["mikhaltsov_5_2"]},
+      {"kind": "max", "value": 50, "verified": true, "sources": ["mikhaltsov_5_2", "pdf_s7_partial"]},
+      {"kind": "max", "value": 60, "verified": true, "sources": ["mikhaltsov_5_2", "pdf_s7_partial"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]}
+    ],
+    "40-63": [
+      {"kind": "max", "value": 25, "verified": false, "sources": ["pdf_s7_partial"], "note": "PDF OCR ambiguous; not used as PASS authority"},
+      {"kind": "unavailable", "verified": false, "sources": ["pdf_s7_partial"]},
+      {"kind": "unavailable", "verified": false, "sources": ["pdf_s7_partial"]},
+      {"kind": "unavailable", "verified": false, "sources": ["pdf_s7_partial"]},
+      {"kind": "max", "value": 40, "verified": false, "sources": ["pdf_s7_partial"]},
+      {"kind": "unavailable", "verified": false, "sources": []},
+      {"kind": "max", "value": 80, "verified": false, "sources": ["pdf_s7_partial"], "note": "OCR «КО/ПО» unreliable"},
+      {"kind": "max", "value": 110, "verified": false, "sources": ["pdf_s7_partial"]}
+    ],
+    "63-100": [
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 40, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 80, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 110, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]}
+    ],
+    "100-160": [
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 35, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 35, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 35, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 50, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md", "pdf_s7_partial"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]}
+    ],
+    "160-250": [
+      {"kind": "max", "value": 30, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 40, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 70, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 100, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]}
+    ],
+    "250-400": [
+      {"kind": "max", "value": 40, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 40, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 40, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 40, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 40, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 40, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 60, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 80, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]}
+    ],
+    "400-630": [
+      {"kind": "unavailable", "verified": true, "sources": ["sterzhni_raschet_md"], "note": "MD empty for short L; PDF has values — left unavailable until clean PDF digitization"},
+      {"kind": "unavailable", "verified": false, "sources": ["pdf_s7_partial"]},
+      {"kind": "unavailable", "verified": false, "sources": ["pdf_s7_partial"]},
+      {"kind": "unavailable", "verified": false, "sources": ["pdf_s7_partial"]},
+      {"kind": "max", "value": 40, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 40, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 50, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "unavailable", "verified": true, "sources": ["sterzhni_raschet_md"]}
+    ],
+    "630-1000": [
+      {"kind": "max", "value": 50, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 50, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 50, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 50, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 50, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 50, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 50, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]},
+      {"kind": "max", "value": 70, "verified": true, "sources": ["mikhaltsov_5_2", "sterzhni_raschet_md"]}
+    ]
+  },
+  "upper_sign_rule": {
+    "clause": "2.3.3",
+    "page_pdf": "С.8",
+    "text": "Высоту верхнего вертикального знака следует принимать не менее 0,5 от высоты нижнего знака",
+    "formula": "H_upper >= 0.5 * H_lower",
+    "applies_when": "upper vertical core print is present",
+    "verified": true,
+    "source": "GOST_3212-92.pdf С.8 п.2.3.3"
+  },
+  "related_clauses": {
+    "2.4.1": "При отсутствии верхнего вертикального знака высоту нижнего допускается увеличивать до 50 % по сравнению с табл.7 — не применяется автоматически в P4.5.1 (требует явного флага)"
+  }
+}
